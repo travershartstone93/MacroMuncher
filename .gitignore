@@ -1,0 +1,6 @@
+doc_cache/
+parsers/
+__pycache__/
+*.log
+*.jar
+grammars/powerquery/*.g4

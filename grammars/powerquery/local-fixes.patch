@@ -1,0 +1,147 @@
+--- a/PowerQueryLexer.g4	2026-09-01 19:25:08.201029403 -0400
++++ b/PowerQueryLexer.g4	2026-01-02 01:12:02.000000000 -0400
+@@ -1,5 +1,9 @@
+ lexer grammar PowerQueryLexer;
+ 
++options {
++    caseInsensitive = true;
++}
++
+ fragment LEXICAL_UNIT: LEXICAL_ELEMENTS;
+ fragment LEXICAL_ELEMENTS: LEXICAL_ELEMENT LEXICAL_ELEMENTS?;
+ fragment LEXICAL_ELEMENT: WHITESPACE | TOKEN COMMENT;
+@@ -143,13 +147,13 @@
+ 	| NUMBER_LITERAL
+ 	| TEXT_LITERAL
+ 	| NULL_LITERAL
+-	| VERBATIM_LITERAL; 
++	| VERBATIM_LITERAL;
+ fragment LOGICAL_LITERAL: 'true' | 'false';
+ fragment DECIMAL_DIGITS: DECIMAL_DIGIT DECIMAL_DIGITS?;
+ fragment DECIMAL_DIGIT: [0-9];
+ fragment HEX_NUMBER_LITERAL: '0x' HEX_DIGITS;
+ fragment HEX_DIGITS: HEX_DIGIT HEX_DIGITS?;
+-fragment HEX_DIGIT: [0-9a-fA-F];
++fragment HEX_DIGIT: [0-9a-f];
+ fragment DECIMAL_NUMBER_LITERAL:
+ 	DECIMAL_DIGITS '.' DECIMAL_DIGITS EXPONENT_PART?
+ 	| '.' DECIMAL_DIGITS EXPONENT_PART?
+--- a/PowerQueryParser.g4	2026-09-01 19:25:08.203915922 -0400
++++ b/PowerQueryParser.g4	2026-01-02 02:39:38.070000000 -0400
+@@ -19,7 +19,6 @@
+ 	| function_expression
+ 	| let_expression
+ 	| if_expression
+-	| let_expression
+ 	| error_raising_expression
+ 	| error_handling_expression;
+ 
+@@ -71,21 +70,26 @@
+ 	| NOT unary_expression;
+ 
+ primary_expression:
++	primary_expression_atom primary_expression_suffix*;
++
++primary_expression_atom:
+ 	literal_expression
+ 	| list_expression
+ 	| record_expression
+ 	| identifier_expression
+ 	| section_access_expression
+ 	| parenthesized_expression
+-	| primary_expression field_selector
+ 	| implicit_target_field_selection
+-	| primary_expression required_projection
+-	| primary_expression optional_projection //projection
+ 	| implicit_target_projection //field_access_expression
+-	| primary_expression OPEN_BRACE item_selector CLOSE_BRACE
+-	| primary_expression OPEN_BRACE item_selector CLOSE_BRACE OPTIONAL //item access expression 
+-	| primary_expression OPEN_PAREN argument_list? CLOSE_PAREN //invoke_expression 
+ 	| not_implemented_expression;
++
++primary_expression_suffix:
++	field_selector
++	| required_projection
++	| optional_projection //projection
++	| OPEN_BRACE item_selector CLOSE_BRACE OPTIONAL? //item access expression
++	| OPEN_PAREN argument_list? CLOSE_PAREN; //invoke_expression
++
+ literal_expression: LITERAL;
+ identifier_expression: identifier_reference;
+ identifier_reference:
+@@ -98,16 +102,30 @@
+ 
+ parenthesized_expression: OPEN_PAREN expression CLOSE_PAREN;
+ not_implemented_expression: ELLIPSES;
+-argument_list: expression | expression COMMA argument_list;
++argument_list: expression (COMMA expression)*;
+ list_expression: OPEN_BRACE item_list? CLOSE_BRACE;
+-item_list: item | item COMMA item_list;
++item_list: item (COMMA item)*;
+ item: expression | expression DOTDOT expression;
+ 
+ record_expression: OPEN_BRACKET field_list? CLOSE_BRACKET;
+-field_list: field | field COMMA field_list;
++field_list: field (COMMA field)*;
+ field: field_name EQUALS expression;
+ field_name: IDENTIFIER;
+-item_selector: expression;
++
++// FIX: Constrain item_selector to break mutual recursion
++// In PowerQuery M, item selectors are typically:
++// - Numeric literals (for indexing): myList{0}
++// - Record literals (for filtering): myTable{[Name="test"]}
++// - Identifiers (variables holding numbers/records): myList{idx}
++item_selector: 
++	LITERAL                                    // Numeric/other literals for indexing
++	| identifier_expression                    // Variables
++	| record_expression                        // Record literals for filtering
++	| parenthesized_item_selector             // Allow parentheses for clarity
++	;
++
++// Allow parenthesized selectors but limit depth
++parenthesized_item_selector: OPEN_PAREN item_selector CLOSE_PAREN;
+ 
+ field_selector:
+ 	required_field_selector
+@@ -121,8 +139,7 @@
+ optional_projection:
+ 	OPEN_BRACKET required_selector_list CLOSE_BRACKET OPTIONAL;
+ required_selector_list:
+-	required_field_selector
+-	| required_field_selector COMMA required_selector_list;
++	required_field_selector (COMMA required_field_selector)*;
+ implicit_target_projection:
+ 	required_projection
+ 	| optional_projection;
+@@ -131,26 +148,23 @@
+ 	OPEN_PAREN parameter_list? CLOSE_PAREN return_type? '=>' function_body;
+ function_body: expression;
+ parameter_list:
+-	fixed_parameter_list
+-	| fixed_parameter_list COMMA optional_parameter_list;
++	fixed_parameter_list (COMMA optional_parameter_list)?;
+ fixed_parameter_list:
+-	parameter
+-	| parameter COMMA fixed_parameter_list;
++	parameter (COMMA parameter)*;
+ parameter: parameter_name parameter_type?;
+ parameter_name: IDENTIFIER;
+ parameter_type: assertion;
+ return_type: assertion;
+ assertion: AS nullable_primitive_type;
+ optional_parameter_list:
+-	optional_parameter
+-	| optional_parameter COMMA optional_parameter_list;
++	optional_parameter (COMMA optional_parameter)*;
+ optional_parameter: OPTIONAL_TEXT parameter;
+ 
+ each_expression: EACH each_expression_body;
+ each_expression_body: function_body;
+ 
+ let_expression: LET variable_list IN expression;
+-variable_list: variable | variable COMMA variable_list;
++variable_list: variable (COMMA variable)*;
+ variable: variable_name EQUALS expression;
+ variable_name: IDENTIFIER;
+ 
