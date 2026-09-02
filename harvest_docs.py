@@ -4,18 +4,9 @@ Offline-first Microsoft Learn docs harvester for:
   - Excel VBA API reference (learn.microsoft.com/en-us/office/vba/api/...)
   - Power Query M reference (learn.microsoft.com/en-us/powerquery-m/...)
 
-Hardened fixes applied (from brittleness review):
-- ✅ Case-insensitive domain allow-list (Learn.Microsoft.Com works)
-- ✅ Content-Type validation (only cache/parse HTML; reject unexpected 200 bodies)
-- ✅ Charset-aware decoding (uses HTTP headers when available)
-- ✅ Uses API-page heuristic for crawl prioritization AND controlled pruning
-- ✅ Deterministic crawl ordering (secondary sort key is URL, not insertion order)
-- ✅ Scrapes richer fields: signature, param_docs (tables/dl), return_value, remarks
-- ✅ Header search includes h2/h3/h4 (more resilient to doc heading changes)
-- ✅ Adds cache schema_version + scraper_version + validation metrics
-- ✅ Validation step warns/fails when extraction quality collapses (doc layout change detector)
-- ✅ Manifest includes mapping URL -> cached filename for debugging
-- ✅ URL canonicalization normalizes query parameter ordering and strips fragments
+The scraper validates content types and charsets, keeps crawl ordering
+deterministic, records schema/scraper versions in the cache, and warns when
+extraction quality drops (a sign the doc layout changed upstream).
 
 Dependencies:
   python3 -m pip install requests beautifulsoup4 lxml

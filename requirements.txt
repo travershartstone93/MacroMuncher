@@ -1,4 +1,4 @@
-# Parser runtime — must match the ANTLR tool version used to generate parsers/
+# Parser runtime - must match the ANTLR tool version used to generate parsers/
 antlr4-python3-runtime==4.13.2
 
 # harvest_docs.py only

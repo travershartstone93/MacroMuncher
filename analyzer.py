@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
-Excel Demystifier Analyzer — ANTLR AST version (deterministic; no regex parsing of VBA/M).
+Excel Demystifier Analyzer - ANTLR AST version (deterministic; no regex parsing of VBA/M).
 
 Pipeline:
   source text -> ANTLR AST -> deterministic fact extraction -> docs binding -> deterministic renderer -> report
 
-Key properties:
-- No heuristic parsing: structure comes from ANTLR grammars.
-- Semantics come from Microsoft Learn docs cache (offline).
-- If uncertain, it says so; it does not guess.
+No heuristic parsing: structure comes from the ANTLR grammars, semantics from
+an offline Microsoft Learn docs cache. When something is uncertain the report
+says so instead of guessing.
 
 Dependencies:
   pip install antlr4-python3-runtime
